@@ -426,6 +426,65 @@ module GoogleDrive
       upload_from_source(io, title, params)
     end
 
+    # Gets the starting pageToken for listing future changes.
+    # Returns the start page token as string.
+    #
+    # params
+    #
+    # { supports_team_drives: , team_drive_id:, fields:, quota_user:, user_ip:, options: }
+    # e.g
+    #
+    #  # Get token from google drive for a user
+    #  session.start_page_token()
+    #
+    #  # Get token from google drive for a specific team drive
+    #  session.start_page_token(supports_team_drives: true , team_drive_id: your_team_drive_id)
+    #
+    def start_page_token(params = {})
+      result = self.drive.get_changes_start_page_token(params)
+      result.start_page_token
+    end
+
+    # Lists the changes for a user or Team Drive
+    # Returns Google::Apis::DriveV3::ChangeList object
+    # More info https://github.com/google/google-api-ruby-client/blob/master/generated/google/apis/drive_v3/service.rb#L179
+    #
+    # params
+    #  { page_token:,
+    #   include_corpus_removals: ,
+    #   include_removed: ,
+    #   include_team_drive_items: ,
+    #   page_size: ,
+    #   restrict_to_my_drive: ,
+    #   spaces: ,
+    #   supports_team_drives: ,
+    #   team_drive_id: ,
+    #   fields: ,
+    #   quota_user: ,
+    #   user_ip: ,
+    #   options:
+    # }
+    # if 'page_token' isn't passed as parameter, the function fetch the last token from the api
+    #
+    # e.g
+    #
+    #  # Get change for a user
+    #  session.changes()
+    #   # with page_token
+    #  session.changes(page_token: 10)
+    #
+    #  # Get changes for a Team Drive
+    #  session.changes(supports_team_drives: true, :team_drive_id: your_team_drive_id)
+    #
+    def changes(params = {})
+      page_token = params.delete(:page_token)
+      unless page_token
+        token_params = params.slice(:supports_team_drives, :team_drive_id, :fields, :quota_user, :user_ip, :options)
+        page_token = self.start_page_token(token_params)
+      end
+      self.drive.list_changes(page_token, params)
+    end
+
     # @api private
     def wrap_api_file(api_file)
       case api_file.mime_type
