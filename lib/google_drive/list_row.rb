@@ -13,9 +13,10 @@ module GoogleDrive
     extend(Forwardable)
 
     def_delegators(:to_hash,
-                   :keys, :values, :each_key, :each_value, :each, :each_pair, :hash,
-                   :assoc, :fetch, :flatten, :key, :invert, :size, :length, :rassoc,
-                   :merge, :reject, :select, :sort, :to_a, :values_at)
+                   :keys, :values, :each_key, :each_value, :each, :each_pair,
+                   :hash, :assoc, :fetch, :flatten, :key, :invert, :size,
+                   :length, :rassoc, :merge, :reject, :select, :sort, :to_a,
+                   :values_at)
 
     # @api private
     def initialize(list, index)
@@ -43,9 +44,9 @@ module GoogleDrive
       @list.keys.include?(key)
     end
 
-    alias_method :include?, :has_key?
-    alias_method :key?, :has_key?
-    alias_method :member?, :has_key?
+    alias include? has_key?
+    alias key? has_key?
+    alias member? has_key?
 
     def update(hash)
       hash.each do |k, v|
@@ -53,7 +54,7 @@ module GoogleDrive
       end
     end
 
-    alias_method :merge!, :update
+    alias merge! update
 
     def replace(hash)
       clear
@@ -78,11 +79,11 @@ module GoogleDrive
       self.class == other.class && to_hash == other.to_hash
     end
 
-    alias_method :===, :==
-    alias_method :eql?, :==
+    alias === ==
+    alias eql? ==
 
     def inspect
-      "\#<%p %p>" % [self.class, to_hash]
+      format("\#<%p %p>", self.class, to_hash)
     end
   end
 end

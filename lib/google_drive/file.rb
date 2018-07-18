@@ -9,12 +9,14 @@ require 'google_drive/util'
 require 'google_drive/acl'
 
 module GoogleDrive
-  # A file in Google Drive, including Google Docs document/spreadsheet/presentation.
+  # A file in Google Drive, including a Google Docs
+  # document/spreadsheet/presentation and a folder.
   #
   # Use GoogleDrive::Session#files or GoogleDrive::Session#file_by_title to
   # get this object.
   #
-  # In addition to the methods below, properties defined here are also available as attributes:
+  # In addition to the methods below, properties defined here are also available
+  # as attributes:
   # https://developers.google.com/drive/v3/reference/files#resource
   #
   # e.g.,
@@ -36,18 +38,21 @@ module GoogleDrive
 
     # Reloads file metadata such as title and acl.
     def reload_metadata
-      @api_file = @session.drive.get_file(id, fields: '*', supports_team_drives: true)
+      @api_file = @session.drive.get_file(
+        id, fields: '*', supports_team_drives: true
+      )
       @acl = Acl.new(@session, self) if @acl
     end
 
     # Returns resource_type + ":" + id.
     def resource_id
-      '%s:%s' % [resource_type, id]
+      format('%s:%s', resource_type, id)
     end
 
     # URL of feed used in the deprecated document list feed API.
     def document_feed_url
-      'https://docs.google.com/feeds/default/private/full/' + CGI.escape(resource_id)
+      'https://docs.google.com/feeds/default/private/full/' +
+        CGI.escape(resource_id)
     end
 
     # Deprecated ACL feed URL of the file.
@@ -66,6 +71,8 @@ module GoogleDrive
       api_file.name
     end
 
+    alias name title
+
     # URL to view/edit the file in a Web browser.
     #
     # e.g. "https://docs.google.com/file/d/xxxx/edit"
@@ -73,11 +80,11 @@ module GoogleDrive
       api_file.web_view_link
     end
 
-    # Content types you can specify in methods download_to_file, download_to_string,
-    # download_to_io .
+    # Content types you can specify in methods download_to_file,
+    # download_to_string, download_to_io.
     #
-    # This returns zero or one file type. You may be able to download the file in other formats using
-    # export_as_file, export_as_string, or export_to_io.
+    # This returns zero or one file type. You may be able to download the file
+    # in other formats using export_as_file, export_as_string, or export_to_io.
     def available_content_types
       api_file.web_content_link ? [api_file.mime_type] : []
     end
@@ -88,8 +95,9 @@ module GoogleDrive
     # To export the file in other formats, use export_as_file.
     def download_to_file(path, params = {})
       @session.drive.get_file(
-          id,
-          {download_dest: path, supports_team_drives: true}.merge(params))
+        id,
+        { download_dest: path, supports_team_drives: true }.merge(params)
+      )
     end
 
     # Downloads the file and returns as a String.
@@ -106,8 +114,9 @@ module GoogleDrive
     # To export the file in other formats, use export_to_io.
     def download_to_io(io, params = {})
       @session.drive.get_file(
-          id,
-          {download_dest: io, supports_team_drives: true}.merge(params))
+        id,
+        { download_dest: io, supports_team_drives: true }.merge(params)
+      )
     end
 
     # Export the file to +path+ in content type +format+.
@@ -117,15 +126,15 @@ module GoogleDrive
     #   spreadsheet.export_as_file("/path/to/hoge.csv")
     #   spreadsheet.export_as_file("/path/to/hoge", "text/csv")
     #
-    # If you want to download the file in the original format, use download_to_file instead.
+    # If you want to download the file in the original format,
+    # use download_to_file instead.
     def export_as_file(path, format = nil)
       unless format
         format = EXT_TO_CONTENT_TYPE[::File.extname(path).downcase]
         unless format
-          fail(ArgumentError,
-               ("Cannot guess format from the file name: %s\n" \
-                'Specify format argument explicitly.') %
-               path)
+          raise(ArgumentError,
+                format("Cannot guess format from the file name: %s\n" \
+                 'Specify format argument explicitly.', path))
         end
       end
       export_to_dest(path, format)
@@ -136,7 +145,8 @@ module GoogleDrive
     # e.g.,
     #   spreadsheet.export_as_string("text/csv")
     #
-    # If you want to download the file in the original format, use download_to_string instead.
+    # If you want to download the file in the original format, use
+    # download_to_string instead.
     def export_as_string(format)
       sio = StringIO.new
       export_to_dest(sio, format)
@@ -145,7 +155,8 @@ module GoogleDrive
 
     # Export the file to +io+ in content type +format+.
     #
-    # If you want to download the file in the original format, use download_to_io instead.
+    # If you want to download the file in the original format, use
+    # download_to_io instead.
     def export_to_io(io, format)
       export_to_dest(io, format)
     end
@@ -163,7 +174,8 @@ module GoogleDrive
     # e.g.
     #   file.update_from_file("/path/to/hoge.txt")
     def update_from_file(path, params = {})
-      # Somehow it doesn't work if I specify the file name directly as upload_source.
+      # Somehow it doesn't work if I specify the file name directly as
+      # upload_source.
       open(path, 'rb') do |f|
         update_from_io(f, params)
       end
@@ -172,7 +184,7 @@ module GoogleDrive
 
     # Reads content from +io+ and updates the file with the content.
     def update_from_io(io, params = {})
-      params = { upload_source: io }.merge(params)
+      params = { upload_source: io, supports_team_drives: true }.merge(params)
       @session.drive.update_file(id, nil, params)
       nil
     end
@@ -181,28 +193,34 @@ module GoogleDrive
     # If +permanent+ is +true+, deletes the file permanently.
     def delete(permanent = false)
       if permanent
-        @session.drive.delete_file(id)
+        @session.drive.delete_file(id, supports_team_drives: true)
       else
-        @session.drive.update_file(id, { trashed: true }, {})
+        @session.drive.update_file(
+          id, { trashed: true }, supports_team_drives: true
+        )
       end
       nil
     end
 
     # Renames title of the file.
     def rename(title)
-      @session.drive.update_file(id, { name: title }, {})
+      @session.drive.update_file(
+        id, { name: title }, supports_team_drives: true
+      )
       nil
     end
 
-    alias_method :title=, :rename
+    alias title= rename
 
     # Creates copy of this file with the given title.
-    def copy(title)
-      api_file = @session.drive.copy_file(id, { name: title }, fields: '*')
+    def copy(title, file_properties = {})
+      api_file = @session.drive.copy_file(
+        id, { name: title }.merge(file_properties), fields: '*', supports_team_drives: true
+      )
       @session.wrap_api_file(api_file)
     end
 
-    alias_method :duplicate, :copy
+    alias duplicate copy
 
     # Returns GoogleDrive::Acl object for the file.
     #
@@ -234,7 +252,7 @@ module GoogleDrive
     end
 
     def inspect
-      "\#<%p id=%p title=%p>" % [self.class, id, title]
+      format("\#<%p id=%p title=%p>", self.class, id, title)
     end
 
     private

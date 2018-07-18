@@ -28,7 +28,7 @@ module GoogleDrive
       '.html' => 'text/html',
       '.zip' => 'application/zip',
       '.swf' => 'application/x-shockwave-flash'
-    }
+    }.freeze
 
     IMPORTABLE_CONTENT_TYPE_MAP = {
       'application/x-vnd.oasis.opendocument.presentation' => 'application/vnd.google-apps.presentation',
@@ -74,19 +74,22 @@ module GoogleDrive
       'text/csv' => 'application/vnd.google-apps.spreadsheet',
       'application/vnd.oasis.opendocument.presentation' => 'application/vnd.google-apps.presentation',
       'image/jpg' => 'application/vnd.google-apps.document',
-      'text/richtext' => 'application/vnd.google-apps.document',
-    }
+      'text/richtext' => 'application/vnd.google-apps.document'
+    }.freeze
 
     module_function
 
     def encode_query(params)
-      params.map { |k, v| CGI.escape(k.to_s) + '=' + CGI.escape(v.to_s) }.join('&')
+      params
+        .map { |k, v| CGI.escape(k.to_s) + '=' + CGI.escape(v.to_s) }
+        .join('&')
     end
 
     def concat_url(url, piece)
       (url_base, url_query) = url.split(/\?/, 2)
       (piece_base, piece_query) = piece.split(/\?/, 2)
-      result_query = [url_query, piece_query].select { |s| s && !s.empty? }.join('&')
+      result_query =
+        [url_query, piece_query].select { |s| s && !s.empty? }.join('&')
       (url_base || '') +
         (piece_base || '') +
         (result_query.empty? ? '' : "?#{result_query}")
@@ -101,40 +104,52 @@ module GoogleDrive
       case arg
 
       when String
-        return arg
+        arg
 
       when Array
         if arg[0].scan(/\?/).size != arg.size - 1
-          fail(
+          raise(
             ArgumentError,
-            "The number of placeholders doesn't match the number of arguments: %p" % [arg])
+            format(
+              "The number of placeholders doesn't match the number of " \
+              'arguments: %p',
+              arg
+            )
+          )
         end
         i = 1
-        return arg[0].gsub(/\?/) do
+        arg[0].gsub(/\?/) do
           v = arg[i]
           i += 1
           case v
           when String
-            "'%s'" % v.gsub(/['\\]/) { '\\' + $& }
+            format("'%s'", v.gsub(/['\\]/) { '\\' + $& })
           when Time
-            "'%s'" % v.iso8601
+            format("'%s'", v.iso8601)
           when TrueClass
             'true'
           when FalseClass
             'false'
           else
-            fail(ArgumentError, 'Expected String, Time, true or false, but got %p' % [v])
+            raise(
+              ArgumentError,
+              format('Expected String, Time, true or false, but got %p', v)
+            )
           end
         end
 
       else
-        fail(ArgumentError, 'Expected String or Array, but got %p' % [arg])
+        raise(
+          ArgumentError, format('Expected String or Array, but got %p', arg)
+        )
 
       end
     end
 
     def construct_and_query(args)
-      args.select { |a| a }.map { |a| '(%s)' % construct_query(a) }.join(' and ')
+      args
+        .select { |a| a }.map { |a| format('(%s)', construct_query(a)) }
+        .join(' and ')
     end
 
     def convert_params(params)
@@ -180,21 +195,26 @@ module GoogleDrive
         when 'showdeleted'
           old_terms.push('trashed = false') if v.to_s == 'false'
         when 'ocr', 'targetLanguage', 'sourceLanguage'
-          fail(ArgumentError, "'%s' parameter is no longer supported." % k)
+          raise(
+            ArgumentError, format("'%s' parameter is no longer supported.", k)
+          )
         else
           # e.g., 'pageToken' -> :page_token
-          new_key = k.
-              gsub(/([A-Z]+)([A-Z][a-z])/,'\1_\2').
-              gsub(/([a-z\d])([A-Z])/,'\1_\2').
-              downcase.
-              intern
+          new_key = k
+                    .gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
+                    .gsub(/([a-z\d])([A-Z])/, '\1_\2')
+                    .downcase
+                    .intern
           new_params[new_key] = v
         end
       end
 
       unless old_terms.empty?
         if new_params.key?(:q)
-          fail(ArgumentError, "Cannot specify both 'q' parameter and old query parameters.")
+          raise(
+            ArgumentError,
+            "Cannot specify both 'q' parameter and old query parameters."
+          )
         else
           new_params[:q] = construct_and_query(old_terms)
         end
@@ -213,10 +233,9 @@ module GoogleDrive
       sc = get_singleton_class(obj)
       names = api_obj.public_methods(false) - exceptions
       names.each do |name|
-        if !(name.to_s =~ /=$/)
-          sc.__send__(:define_method, name) do
-            api_obj.__send__(name)
-          end
+        next if name.to_s =~ /=$/
+        sc.__send__(:define_method, name) do
+          api_obj.__send__(name)
         end
       end
     end

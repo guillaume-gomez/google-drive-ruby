@@ -54,7 +54,7 @@ module GoogleDrive
       @params ? @params[:type] : @api_permission.type
     end
 
-    alias_method :scope_type, :type
+    alias scope_type type
 
     def additional_roles
       @params ? @params[:additionalRoles] : @api_permission.additional_roles
@@ -81,8 +81,6 @@ module GoogleDrive
           @params[:email_address]
         when 'domain'
           @params[:domain]
-        else
-          nil
         end
       else
         case @api_permission.type
@@ -90,18 +88,17 @@ module GoogleDrive
           @api_permission.email_address
         when 'domain'
           @api_permission.domain
-        else
-          nil
         end
       end
     end
 
-    alias_method :scope, :value
+    alias scope value
 
     # If +false+, the file is shared only with people who know the link.
     # Only used for type "anyone".
     def allow_file_discovery
-      @params ? @params[:allow_file_discovery] : @api_permission.allow_file_discovery
+      @params ?
+        @params[:allow_file_discovery] : @api_permission.allow_file_discovery
     end
 
     # If +true+, the file is shared only with people who know the link.
@@ -110,7 +107,7 @@ module GoogleDrive
       allow_file_discovery == false
     end
 
-    alias_method :with_key, :with_link
+    alias with_key with_link
 
     # Changes the role of the scope.
     #
@@ -128,17 +125,22 @@ module GoogleDrive
     def inspect
       case type
       when 'user', 'group'
-        "\#<%p type=%p, email_address=%p, role=%p>" %
-          [self.class, type, email_address, role]
+        format(
+          "\#<%p type=%p, email_address=%p, role=%p>",
+          self.class, type, email_address, role
+        )
       when 'domain'
-        "\#<%p type=%p, domain=%p, role=%p>" %
-          [self.class, type, domain, role]
+        format(
+          "\#<%p type=%p, domain=%p, role=%p>",
+          self.class, type, domain, role
+        )
       when 'anyone'
-        "\#<%p type=%p, role=%p, allow_file_discovery=%p>" %
-          [self.class, type, role, allow_file_discovery]
+        format(
+          "\#<%p type=%p, role=%p, allow_file_discovery=%p>",
+          self.class, type, role, allow_file_discovery
+        )
       else
-        "\#<%p type=%p, role=%p>" %
-          [self.class, type, role]
+        format("\#<%p type=%p, role=%p>", self.class, type, role)
       end
     end
 
